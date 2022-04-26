@@ -28,8 +28,10 @@ public class CategoryController {
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public CategoryDTO getById(@PathParam("id") Long id){
-        return categoryService.getById(id);
+    public RestResponse<Object> getById(@PathParam("id") Long id){
+        CategoryDTO categoryDTO=categoryService.getById(id);
+        if (categoryDTO==null) return RestResponse.notFound();
+        return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) categoryDTO).build();
     }
 
     @POST

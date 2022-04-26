@@ -1,16 +1,13 @@
 package com.example.my.controllers;
 
 import com.example.my.DTOs.OfferDTO;
-import com.example.my.DTOs.PayMethod;
 import com.example.my.exceptions.BodyExceptionWrapper;
 import com.example.my.serviceImpls.OfferServiceImpl;
 import com.example.my.services.CharacteristicService;
 import com.example.my.validators.OfferValidator;
 
-import org.eclipse.microprofile.rest.client.inject.RestClient;
+
 import org.jboss.resteasy.annotations.jaxrs.PathParam;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.jboss.resteasy.reactive.RestResponse;
 
 
@@ -21,7 +18,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Path("/offers")
 public class OffersController {
@@ -97,36 +93,17 @@ public class OffersController {
         return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) characteristicService.getAllCharacteristicsByOrderId(id)).build();
     }
 
-    @GET
-    @Path("/{id}/help")
+    @POST
+    @Path("/help")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> getOffersForCustomer(@PathParam("id") Long id, HttpHeaders httpHeaders){
-        ResteasyClient resteasyClient = new ResteasyClientBuilderImpl().build();
-        try {
-            Response response=resteasyClient
-                    .target("http://localhost:8081")
-                    .path("/customers/{id}/payMethods")
-                    .resolveTemplate("id", id)
-                    .request()
-                    .header(HttpHeaders.AUTHORIZATION, httpHeaders.getRequestHeaders().get(HttpHeaders.AUTHORIZATION).get(0))
-                    .get();
-            if (response.getStatus()==404) return RestResponse.notFound();
-            if (response.getStatus()==401) return RestResponse.ResponseBuilder.create(RestResponse.Status.fromStatusCode(401),response.getEntity()).build();
-            List<PayMethod> payMethods=response.readEntity(new GenericType<>(){});
-            List<OfferDTO> offerDTOS=findAllByPayList(payMethods);
+    public RestResponse<Object> getOffersForCustomer(Set<Long> ids){
+            List<OfferDTO> offerDTOS=findAllByPayList(ids);
             return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) offerDTOS).build();
-        }
-        catch (ProcessingException e) {
-            e.printStackTrace();
-            return RestResponse.serverError();
-        }
     }
 
-    //Если статус != ОК, то Quarkus добавляет к ответу заголовки Content-Length и Transfer-Encoding одновременно, что приводит к ошибке Postman (ТОЛЬКО!) в браузере всё нормально
-
     @GET
-    @Path("/countWithPayMethod/{id}") //silly endpoint's name
+    @Path("/countWithPayMethod/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public RestResponse<Object> getOfferCountByPayId(@PathParam("id") Long id){
@@ -134,10 +111,9 @@ public class OffersController {
         return RestResponse.ok(l);
     }
 
-    private List<OfferDTO> findAllByPayList(List<PayMethod> payMethods){
+    private List<OfferDTO> findAllByPayList(Set<Long> ids){
         List<OfferDTO> dtos=new ArrayList<>();
-        Set<Long> l=payMethods.stream().map(x->x.getPayId()).collect(Collectors.toSet());
-        for (Long payId:l){
+        for (Long payId:ids){
             dtos.addAll(offerService.findByPayMethod(payId));
         }
         return dtos;
