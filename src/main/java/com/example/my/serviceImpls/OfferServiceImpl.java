@@ -8,6 +8,7 @@ import com.example.my.repositories.CategoryRepo;
 import com.example.my.repositories.OfferRepo;
 import com.example.my.services.CharacteristicService;
 import com.example.my.services.OfferService;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @ApplicationScoped
 @Transactional
 public class OfferServiceImpl implements OfferService {
@@ -56,7 +58,9 @@ public class OfferServiceImpl implements OfferService {
         if (offer!=null) {
             Category category=offer.getCategory();
             offerRepo.deleteById(id);
+            log.info("offer {} has been deleted", offer);
             if (offerRepo.count("category", category) == 0) {
+                log.info("category title={} deleted, cause empty", category.getTitle());
                 categoryRepo.deleteById(category.getId());
             }
             return true;
@@ -73,10 +77,16 @@ public class OfferServiceImpl implements OfferService {
                 .characteristics(new HashSet<>())
                 .build();
         offerRepo.persist(offer);
-        offer.getCharacteristics().addAll(offerDTO.getCharacteristics().stream().map(x->{
-            x.setOfferId(offer.getId());
-            return characteristicService.getObjByDTO(x);
-        }).collect(Collectors.toList()));
+        for (CharacteristicDTO dto:offerDTO.getCharacteristics()){
+            dto.setOfferId(offer.getId());
+            if (characteristicService.isExists(dto.getId())){
+                characteristicService.update(dto);
+            }else {
+                dto.setId(null);
+                offer.getCharacteristics().add(characteristicService.getObjByDTO(dto));
+            }
+        }
+        log.info("offer {} has been added", offerDTO);
     }
 
     public void updateOffer(OfferDTO offerDTO){
@@ -95,6 +105,7 @@ public class OfferServiceImpl implements OfferService {
             }
         }
         offerRepo.persist(offer);
+        log.info("offer {} has been updated", offerDTO);
     }
 
     public boolean isExists(Long id){

@@ -6,6 +6,7 @@ import com.example.my.entities.Offer;
 import com.example.my.repositories.CharacteristicRepo;
 import com.example.my.repositories.OfferRepo;
 import com.example.my.services.CharacteristicService;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -13,6 +14,7 @@ import javax.transaction.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @ApplicationScoped
 @Transactional
 public class CharacteristicsServiceImpl implements CharacteristicService {
@@ -71,10 +73,13 @@ public class CharacteristicsServiceImpl implements CharacteristicService {
                 .offer(offerRepo.findById(characteristicDTO.getOfferId()))
                 .build();
         characteristicRepo.persist(characteristic);
+        log.info("characteristic {} has been added", characteristicDTO);
     }
 
     public boolean delete(Long id){
-        return characteristicRepo.deleteById(id);
+        boolean f=characteristicRepo.deleteById(id);
+        log.info("characteristic id={} has been deleted", id);
+        return f;
     }
 
     @Override
@@ -83,6 +88,7 @@ public class CharacteristicsServiceImpl implements CharacteristicService {
         characteristic.setTitle(characteristicDTO.getTitle());
         characteristic.setValue(characteristicDTO.getValue());
         characteristicRepo.persist(characteristic);
+        log.info("characteristic {} has been updated", characteristicDTO);
     }
 
     public boolean isExists(Long id){

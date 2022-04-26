@@ -2,14 +2,17 @@ package com.example.my.controllers;
 
 import com.example.my.DTOs.CategoryDTO;
 import com.example.my.services.CategoryService;
+import lombok.extern.slf4j.Slf4j;
 import org.jboss.resteasy.annotations.jaxrs.PathParam;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import java.net.URI;
 import java.util.List;
 
+@Slf4j
 @Path("/category")
 public class CategoryController {
     private CategoryService categoryService;
@@ -30,7 +33,10 @@ public class CategoryController {
     @Produces(MediaType.APPLICATION_JSON)
     public RestResponse<Object> getById(@PathParam("id") Long id){
         CategoryDTO categoryDTO=categoryService.getById(id);
-        if (categoryDTO==null) return RestResponse.notFound();
+        if (categoryDTO==null) {
+            log.info("No category with id={} found", id);
+            return RestResponse.notFound();
+        }
         return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) categoryDTO).build();
     }
 
@@ -39,7 +45,7 @@ public class CategoryController {
     @Consumes(MediaType.APPLICATION_JSON)
     public RestResponse<Object> add(CategoryDTO categoryDTO){
         categoryService.add(categoryDTO);
-        return null;
+        return RestResponse.created(URI.create("/category"));
     }
 
     @PUT
@@ -47,6 +53,6 @@ public class CategoryController {
     @Consumes(MediaType.APPLICATION_JSON)
     public RestResponse<Object> update(CategoryDTO categoryDTO){
         categoryService.update(categoryDTO);
-        return null;
+        return RestResponse.ok();
     }
 }

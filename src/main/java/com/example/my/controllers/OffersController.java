@@ -7,6 +7,7 @@ import com.example.my.services.CharacteristicService;
 import com.example.my.validators.OfferValidator;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.jboss.resteasy.annotations.jaxrs.PathParam;
 import org.jboss.resteasy.reactive.RestResponse;
 
@@ -19,19 +20,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Path("/offers")
 public class OffersController {
     private OfferServiceImpl offerService;
     private OfferValidator offerValidator;
     private CharacteristicService characteristicService;
+
     @Inject
     public void setOfferService(OfferServiceImpl offerService) {
         this.offerService = offerService;
     }
+
     @Inject
     public void setOfferValidator(OfferValidator offerValidator) {
         this.offerValidator = offerValidator;
     }
+
     @Inject
     public void setCharacteristicService(CharacteristicService characteristicService) {
         this.characteristicService = characteristicService;
@@ -48,18 +53,24 @@ public class OffersController {
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> getById(@PathParam("id") Long id){
-        OfferDTO offerDTO=offerService.getDTOById(id);
-        if (offerDTO==null) return RestResponse.notFound();
+    public RestResponse<Object> getById(@PathParam("id") Long id) {
+        OfferDTO offerDTO = offerService.getDTOById(id);
+        if (offerDTO == null) {
+            log.info("No offers with id={} found", id);
+            return RestResponse.notFound();
+        }
         return RestResponse.ok(offerDTO);
     }
 
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> addNewOffer(OfferDTO offerDTO){
-        List<BodyExceptionWrapper> reports=offerValidator.validateNewOffer(offerDTO);
-        if (reports.size()!=0) return RestResponse.ResponseBuilder.create(RestResponse.Status.BAD_REQUEST, (Object) reports).build();
+    public RestResponse<Object> addNewOffer(OfferDTO offerDTO) {
+        List<BodyExceptionWrapper> reports = offerValidator.validateNewOffer(offerDTO);
+        if (reports.size() != 0) {
+            log.info(reports.toString());
+            return RestResponse.ResponseBuilder.create(RestResponse.Status.BAD_REQUEST, (Object) reports).build();
+        }
         offerService.createOffer(offerDTO);
         return RestResponse.created(URI.create("/offers"));
     }
@@ -68,18 +79,22 @@ public class OffersController {
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> delete(@PathParam("id") Long id){
-        boolean f=offerService.deleteOffer(id);
+    public RestResponse<Object> delete(@PathParam("id") Long id) {
+        boolean f = offerService.deleteOffer(id);
         if (f) return RestResponse.ok();
+        log.info("No category with id={} deleted", id);
         return RestResponse.noContent();
     }
 
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> updateOffer(OfferDTO offerDTO){
-        List<BodyExceptionWrapper> reports=offerValidator.validateExistsOffer(offerDTO);
-        if (reports.size()!=0) return RestResponse.ResponseBuilder.create(RestResponse.Status.CONFLICT, (Object) reports).build();
+    public RestResponse<Object> updateOffer(OfferDTO offerDTO) {
+        List<BodyExceptionWrapper> reports = offerValidator.validateExistsOffer(offerDTO);
+        if (reports.size() != 0) {
+            log.info("No category with id={} updated (conflict)", offerDTO.getId());
+            return RestResponse.ResponseBuilder.create(RestResponse.Status.CONFLICT, (Object) reports).build();
+        }
         offerService.updateOffer(offerDTO);
         return RestResponse.ok();
     }
@@ -88,8 +103,11 @@ public class OffersController {
     @Path("/{id}/characteristics")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> getCharsByOfferId(@PathParam("id") Long id){
-        if (!offerService.isExists(id)) return RestResponse.notFound();
+    public RestResponse<Object> getCharsByOfferId(@PathParam("id") Long id) {
+        if (!offerService.isExists(id)) {
+            log.info("No offer with id={} found", id);
+            return RestResponse.notFound();
+        }
         return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) characteristicService.getAllCharacteristicsByOrderId(id)).build();
     }
 
@@ -97,23 +115,25 @@ public class OffersController {
     @Path("/help")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> getOffersForCustomer(Set<Long> ids){
-            List<OfferDTO> offerDTOS=findAllByPayList(ids);
-            return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) offerDTOS).build();
+    public RestResponse<Object> getOffersForCustomer(Set<Long> ids) {
+        log.debug("Try to find all offers for set ids={}", ids);
+        List<OfferDTO> offerDTOS = findAllByPayList(ids);
+        log.debug("Found {} offers", offerDTOS.size());
+        return RestResponse.ResponseBuilder.create(RestResponse.Status.OK, (Object) offerDTOS).build();
     }
 
     @GET
     @Path("/countWithPayMethod/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public RestResponse<Object> getOfferCountByPayId(@PathParam("id") Long id){
-        Integer l=offerService.findByPayMethod(id).size();
+    public RestResponse<Object> getOfferCountByPayId(@PathParam("id") Long id) {
+        Integer l = offerService.findByPayMethod(id).size();
         return RestResponse.ok(l);
     }
 
-    private List<OfferDTO> findAllByPayList(Set<Long> ids){
-        List<OfferDTO> dtos=new ArrayList<>();
-        for (Long payId:ids){
+    private List<OfferDTO> findAllByPayList(Set<Long> ids) {
+        List<OfferDTO> dtos = new ArrayList<>();
+        for (Long payId : ids) {
             dtos.addAll(offerService.findByPayMethod(payId));
         }
         return dtos;
