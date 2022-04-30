@@ -1,14 +1,18 @@
 package com.example.my.controllers;
 
+import com.example.my.DTOs.CatPriceWrapper;
 import com.example.my.DTOs.OfferDTO;
 import com.example.my.exceptions.BodyExceptionWrapper;
 import com.example.my.serviceImpls.OfferServiceImpl;
+import com.example.my.services.CategoryService;
 import com.example.my.services.CharacteristicService;
 import com.example.my.validators.OfferValidator;
 
 
 import lombok.extern.slf4j.Slf4j;
 import org.jboss.resteasy.annotations.jaxrs.PathParam;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.jboss.resteasy.reactive.RestResponse;
 
 
@@ -26,6 +30,8 @@ public class OffersController {
     private OfferServiceImpl offerService;
     private OfferValidator offerValidator;
     private CharacteristicService characteristicService;
+    private CategoryService categoryService;
+    private final ResteasyClient resteasyClient = new ResteasyClientBuilderImpl().build();
 
     @Inject
     public void setOfferService(OfferServiceImpl offerService) {
@@ -35,6 +41,11 @@ public class OffersController {
     @Inject
     public void setOfferValidator(OfferValidator offerValidator) {
         this.offerValidator = offerValidator;
+    }
+
+    @Inject
+    public void setCategoryService(CategoryService categoryService) {
+        this.categoryService = categoryService;
     }
 
     @Inject
@@ -80,6 +91,15 @@ public class OffersController {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public RestResponse<Object> delete(@PathParam("id") Long id) {
+        Response response = resteasyClient
+                .target("http://localhost:8082")
+                .path("/card/countByOfferId/{id}")
+                .resolveTemplate("id", id)
+                .request()
+                .get();
+        if (response.readEntity(Long.class)!=0){
+            return RestResponse.ResponseBuilder.create(RestResponse.Status.BAD_REQUEST, (Object) new BodyExceptionWrapper("Not deleted", "This offer has attachments with order card")).build();
+        }
         boolean f = offerService.deleteOffer(id);
         if (f) return RestResponse.ok();
         log.info("No category with id={} deleted", id);
@@ -137,5 +157,24 @@ public class OffersController {
             dtos.addAll(offerService.findByPayMethod(payId));
         }
         return dtos;
+    }
+
+    @GET
+    @Path("/isExists/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public RestResponse<Object> isOfferExists(@PathParam("id") Long id) {
+        if (offerService.isExists(id)) return RestResponse.ok();
+        return RestResponse.notFound();
+    }
+
+    @GET
+    @Path("/{id}/categoryAndPrice")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public RestResponse<Object> getCategoryAndPrice(@PathParam("id") Long id) {
+        OfferDTO offerDTO=offerService.getDTOById(id);
+        if (offerDTO==null) return RestResponse.notFound();
+        return RestResponse.ResponseBuilder.create(RestResponse.Status.OK,(Object) new CatPriceWrapper(categoryService.getById(offerDTO.getCategoryId()).getTitle(),offerDTO.getPrice())).build();
     }
 }
